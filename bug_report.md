@@ -154,3 +154,13 @@
 - **File:** `app/main.py`
 - **Bug:** `@app.on_event("startup")` doesn't fire when Starlette's `TestClient(app)` is instantiated at module level (outside a context manager). So `init_counter_from_db` never runs, the counter stays at 1000, and reference codes collide with existing DB data.
 - **Fix:** Move `init_counter_from_db` call out of the startup event to module level, right after `Base.metadata.create_all`.
+
+## Bug 32: In-memory room stats reset to 0 on restart (Rule 14)
+- **File:** `app/routers/rooms.py:103-115`, `app/services/stats.py`
+- **Bug:** Room stats are tracked incrementally in an in-memory dict. After a server restart, all stats return 0 even if rooms have confirmed bookings, violating "Always equals the values derivable from the bookings themselves."
+- **Fix:** The stats endpoint now queries confirmed bookings directly from the DB instead of relying on in-memory counters.
+
+## Bug 33: Missing DB-level unique constraint on RefundLog.booking_id (Rule 6)
+- **File:** `app/models.py:66`
+- **Bug:** No UNIQUE constraint on `booking_id` in `RefundLog`. While the `_cancel_lock` prevents concurrent double-cancel in the app, a DB-level constraint provides defence-in-depth against duplicate refund logs for the same booking.
+- **Fix:** Add `unique=True` to the `booking_id` column.

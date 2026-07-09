@@ -63,7 +63,7 @@ class RefundLog(Base):
     __tablename__ = "refund_logs"
 
     id = Column(Integer, primary_key=True)
-    booking_id = Column(Integer, ForeignKey("bookings.id"), nullable=False, index=True)
+    booking_id = Column(Integer, ForeignKey("bookings.id"), nullable=False, unique=True, index=True)
     amount_cents = Column(Integer, nullable=False)
     status = Column(String, nullable=False)
     processed_at = Column(DateTime, default=datetime.utcnow, nullable=False)
