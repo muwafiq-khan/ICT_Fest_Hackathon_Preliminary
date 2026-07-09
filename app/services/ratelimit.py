@@ -11,6 +11,10 @@ _buckets: dict[int, list[float]] = {}
 _lock = threading.Lock()
 
 
+def reset() -> None:
+    _buckets.clear()
+
+
 def record_and_check(user_id: int) -> None:
     now = time.time()
     with _lock:
