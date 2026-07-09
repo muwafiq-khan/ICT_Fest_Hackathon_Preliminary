@@ -16,6 +16,8 @@ from ..errors import AppError
 from ..models import Organization, User
 from ..schemas import LoginRequest, RefreshRequest, RegisterRequest
 
+_used_refresh_tokens: set[str] = set()
+
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 
@@ -83,6 +85,9 @@ def refresh(payload: RefreshRequest, db: Session = Depends(get_db)):
     data = decode_token(payload.refresh_token)
     if data.get("type") != "refresh":
         raise AppError(401, "UNAUTHORIZED", "Wrong token type")
+    if data.get("jti") in _used_refresh_tokens:
+        raise AppError(401, "UNAUTHORIZED", "Refresh token already used")
+    _used_refresh_tokens.add(data.get("jti"))
     user = db.query(User).filter(User.id == int(data["sub"])).first()
     if user is None:
         raise AppError(401, "UNAUTHORIZED", "Unknown user")
