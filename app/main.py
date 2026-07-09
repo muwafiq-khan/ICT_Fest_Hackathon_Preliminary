@@ -8,18 +8,15 @@ from .services.reference import init_counter_from_db
 
 Base.metadata.create_all(bind=engine)
 
+db = SessionLocal()
+try:
+    init_counter_from_db(db)
+finally:
+    db.close()
+
 app = FastAPI(title="CoWork API", version="1.0.0")
 
 app.add_exception_handler(AppError, app_error_handler)
-
-
-@app.on_event("startup")
-def startup():
-    db = SessionLocal()
-    try:
-        init_counter_from_db(db)
-    finally:
-        db.close()
 
 
 app.include_router(health.router)

@@ -134,3 +134,23 @@
 - **File:** `app/models.py:55`
 - **Bug:** No UNIQUE constraint on `reference_code` column, allowing possible duplicates at the DB level.
 - **Fix:** Add `unique=True` to the column definition.
+
+## Bug 28: GET /bookings/{id} lets members read other members' bookings (Rule 10)
+- **File:** `app/routers/bookings.py:164-171`
+- **Bug:** The `get_booking` endpoint scopes by org but not by user_id for members. A member can read any booking in their org. Spec: "Another member's booking id → 404 BOOKING_NOT_FOUND."
+- **Fix:** Add `if user.role != "admin" and booking.user_id != user.id: raise AppError(404, ...)` after the existence check.
+
+## Bug 29: Concurrent cancel causes multiple RefundLog entries (Rule 6)
+- **File:** `app/routers/bookings.py:186-233`
+- **Bug:** `cancel_booking` has no mutex. Two concurrent requests both see `status == "confirmed"`, both call `log_refund`, both commit → two RefundLog entries for one booking. Spec: "A cancelled booking has exactly one RefundLog entry."
+- **Fix:** Add `_cancel_lock` and wrap the cancel logic (status check → log_refund → commit) in `with _cancel_lock:`.
+
+## Bug 30: Opposite lock ordering in notifications → deadlock (Rule 16)
+- **File:** `app/services/notifications.py`
+- **Bug:** `notify_created` acquires `_email_lock` then `_audit_lock`; `notify_cancelled` acquires `_audit_lock` then `_email_lock`. If one thread is in each simultaneously, they deadlock. Spec: "No combination of concurrent requests may hang the service."
+- **Fix:** Use the same lock ordering (email → audit) in both functions.
+
+## Bug 31: init_counter_from_db not triggered by module-level TestClient (Rule 7)
+- **File:** `app/main.py`
+- **Bug:** `@app.on_event("startup")` doesn't fire when Starlette's `TestClient(app)` is instantiated at module level (outside a context manager). So `init_counter_from_db` never runs, the counter stays at 1000, and reference codes collide with existing DB data.
+- **Fix:** Move `init_counter_from_db` call out of the startup event to module level, right after `Base.metadata.create_all`.
