@@ -94,3 +94,8 @@
 - **File:** `app/routers/bookings.py:222`
 - **Bug:** `cancel_booking` invalidates the report cache but not the availability cache, so cancelled bookings still appear in availability until the TTL.
 - **Fix:** Add `cache.invalidate_availability(booking.room_id, ...)` in the cancel handler.
+
+## Bug 20: Duplicate username returns 200 instead of 409
+- **File:** `app/routers/auth.py:39-45`
+- **Bug:** When a duplicate username is registered within the same org, the code returns the existing user data with status 200 instead of raising `409 USERNAME_TAKEN`.
+- **Fix:** Raise `AppError(409, "USERNAME_TAKEN", ...)` instead of returning the existing user.
