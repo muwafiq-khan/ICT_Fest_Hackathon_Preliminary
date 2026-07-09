@@ -99,3 +99,38 @@
 - **File:** `app/routers/auth.py:39-45`
 - **Bug:** When a duplicate username is registered within the same org, the code returns the existing user data with status 200 instead of raising `409 USERNAME_TAKEN`.
 - **Fix:** Raise `AppError(409, "USERNAME_TAKEN", ...)` instead of returning the existing user.
+
+## Bug 21: `datetime.fromisoformat` fails on Z suffix in Python 3.10
+- **File:** `app/timeutils.py:11`
+- **Bug:** Python 3.10's `fromisoformat` doesn't accept `Z` suffix. Input like `2026-07-09T10:00:00Z` would raise an error.
+- **Fix:** Convert `Z`/`z` suffix to `+00:00` before parsing.
+
+## Bug 22: Admin listing only shows own bookings
+- **File:** `app/routers/bookings.py:139`
+- **Bug:** `list_bookings` filters by `Booking.user_id == user.id` for all users. Admins should see all bookings in their org per Rule 10.
+- **Fix:** For admins, query all bookings joined with Room filtered by org_id.
+
+## Bug 23: Non-atomic refund + cancel transaction
+- **File:** `app/services/refunds.py:22-23`, `app/routers/bookings.py:214-218`
+- **Bug:** `log_refund` commits the RefundLog immediately, then `cancel_booking` commits the status change separately. If the second commit fails, the RefundLog exists without the cancellation.
+- **Fix:** Remove `db.commit()` and `db.refresh()` from `log_refund`; let the single `db.commit()` in `cancel_booking` handle both atomically.
+
+## Bug 24: Race condition on concurrent org registration
+- **File:** `app/routers/auth.py:26-32`
+- **Bug:** Two concurrent requests for the same new org name both see `org is None`, both create orgs, and one hits a unique constraint error → 500.
+- **Fix:** Wrap org creation in try/except IntegrityError to handle the race gracefully.
+
+## Bug 25: Cross-org data leak in CSV export
+- **File:** `app/services/export.py:22-29`, `app/routers/admin.py:72`
+- **Bug:** `fetch_bookings_raw` doesn't scope by org_id. An admin could request export for a room_id belonging to another org and get leaked data.
+- **Fix:** Add `org_id` parameter to `fetch_bookings_raw` and join with Room to filter.
+
+## Bug 26: Reference code counter resets on restart
+- **File:** `app/services/reference.py:9`
+- **Bug:** The counter starts at 1000 every time the server restarts, even if bookings already exist with higher codes, causing duplicate reference codes.
+- **Fix:** Add `init_counter_from_db()` called on startup that initializes the counter from the highest existing booking reference code.
+
+## Bug 27: No DB-level uniqueness on reference_code
+- **File:** `app/models.py:55`
+- **Bug:** No UNIQUE constraint on `reference_code` column, allowing possible duplicates at the DB level.
+- **Fix:** Add `unique=True` to the column definition.

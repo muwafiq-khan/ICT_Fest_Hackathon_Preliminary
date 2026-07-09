@@ -11,6 +11,8 @@ from ..auth import (
     revoke_access_token,
     verify_password,
 )
+from sqlalchemy.exc import IntegrityError
+
 from ..database import get_db
 from ..errors import AppError
 from ..models import Organization, User
@@ -28,8 +30,13 @@ def register(payload: RegisterRequest, db: Session = Depends(get_db)):
     if org is None:
         org = Organization(name=payload.org_name)
         db.add(org)
-        db.commit()
-        db.refresh(org)
+        try:
+            db.commit()
+            db.refresh(org)
+        except IntegrityError:
+            db.rollback()
+            org = db.query(Organization).filter(Organization.name == payload.org_name).first()
+            role = "member"
 
     existing = (
         db.query(User)
