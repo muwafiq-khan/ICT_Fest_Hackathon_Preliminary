@@ -146,12 +146,12 @@
 - **Fix:** Add `_cancel_lock` and wrap the cancel logic (status check → log_refund → commit) in `with _cancel_lock:`.
 
 ## Bug 30: Opposite lock ordering in notifications → deadlock (Rule 16)
-- **File:** `app/services/notifications.py`
+- **File:** `app/services/notifications.py:24-35`
 - **Bug:** `notify_created` acquires `_email_lock` then `_audit_lock`; `notify_cancelled` acquires `_audit_lock` then `_email_lock`. If one thread is in each simultaneously, they deadlock. Spec: "No combination of concurrent requests may hang the service."
 - **Fix:** Use the same lock ordering (email → audit) in both functions.
 
 ## Bug 31: init_counter_from_db not triggered by module-level TestClient (Rule 7)
-- **File:** `app/main.py`
+- **File:** `app/main.py:11-15`
 - **Bug:** `@app.on_event("startup")` doesn't fire when Starlette's `TestClient(app)` is instantiated at module level (outside a context manager). So `init_counter_from_db` never runs, the counter stays at 1000, and reference codes collide with existing DB data.
 - **Fix:** Move `init_counter_from_db` call out of the startup event to module level, right after `Base.metadata.create_all`.
 
